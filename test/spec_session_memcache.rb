@@ -46,6 +46,12 @@ begin
       pool.pool.namespace.should.equal 'test:rack:session'
     end
 
+    it "uses memcache instance" do
+      test_pool = MemCache.new
+      pool = Rack::Session::Memcache.new(incrementor, :namesace => 'test:rack:session', :memcache_instance => test_pool)
+      pool.pool.should == test_pool
+    end
+
     it "creates a new cookie" do
       pool = Rack::Session::Memcache.new(incrementor)
       res = Rack::MockRequest.new(pool).get("/")

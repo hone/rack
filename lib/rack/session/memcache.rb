@@ -29,12 +29,17 @@ module Rack
         super
 
         @mutex = Mutex.new
-        mserv = @default_options[:memcache_server]
-        mopts = @default_options.
-          reject{|k,v| !MemCache::DEFAULT_OPTIONS.include? k }
-        @pool = MemCache.new mserv, mopts
-        unless @pool.active? and @pool.servers.any?{|c| c.alive? }
-          raise 'No memcache servers'
+
+        if options[:memcache_instance]
+          @pool = options[:memcache_instance]
+        else
+          mserv = @default_options[:memcache_server]
+          mopts = @default_options.
+            reject{|k,v| !MemCache::DEFAULT_OPTIONS.include? k }
+          @pool = MemCache.new mserv, mopts
+          unless @pool.active? and @pool.servers.any?{|c| c.alive? }
+            raise 'No memcache servers'
+          end
         end
       end
 
@@ -55,7 +60,7 @@ module Rack
         end
         session.instance_variable_set '@old', @pool.get(session_id, true)
         return [session_id, session]
-      rescue MemCache::MemCacheError, Errno::ECONNREFUSED
+      rescue MemCache::MemCacheError, Errno::ECONNREFUSED, Memcached::ServerIsMarkedDead
         # MemCache server cannot be contacted
         warn "#{self} is unable to find memcached server."
         warn $!.inspect
@@ -106,7 +111,7 @@ module Rack
 
         @pool.set session_id, session, expiry
         return session_id
-      rescue MemCache::MemCacheError, Errno::ECONNREFUSED
+      rescue MemCache::MemCacheError, Errno::ECONNREFUSED, Memcached::ServerIsMarkedDead
         # MemCache server cannot be contacted
         warn "#{self} is unable to find memcached server."
         warn $!.inspect
